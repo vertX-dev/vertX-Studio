@@ -1,0 +1,6 @@
+{
+  "title": "Hitbox Function Generator",
+  "description": "Draw hitboxes on a 32×32 grid and assign colour-coded commands, then export the result as a Minecraft function.",
+  "tags": ["minecraft", "legacy"],
+  "order": 10
+}

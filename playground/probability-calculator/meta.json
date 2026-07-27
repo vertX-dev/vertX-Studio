@@ -1,0 +1,6 @@
+{
+  "title": "Probability Distribution Calculator",
+  "description": "Expected value, variance and standard deviation for a discrete distribution.",
+  "tags": ["math", "legacy"],
+  "order": 40
+}

@@ -1,0 +1,6 @@
+{
+  "title": "Loot-Table Editor",
+  "description": "Build Bedrock loot tables through a form instead of by hand, and download them as a zip.",
+  "tags": ["minecraft", "legacy"],
+  "order": 20
+}
