@@ -1,4 +1,9 @@
-/* UI for the frame generator: live preview, presets, background image, exports. */
+/* UI for the frame generator: live preview, layers, presets, exports.
+
+   Compositing order, bottom to top:
+     background layer -> generated frame -> foreground layer
+   The preview always shows every loaded layer; the per-layer "export" checkbox
+   only affects what Download PNG and the ZIP batch contain. */
 
 (function () {
   'use strict';
@@ -29,13 +34,19 @@
     color2: 'color2'
   };
 
+  const LAYER_NUMBERS = ['Opacity', 'Scale', 'OffsetX', 'OffsetY'];
+
   const OUTPUT_FORMAT = {
     margin: function (v) { return (v * 100).toFixed(1) + '%'; },
     marginJitter: function (v) { return (v * 100).toFixed(0) + '%'; },
     cornerRadius: function (v) { return (v * 100).toFixed(1) + '%'; },
     roughness: function (v) { return v.toFixed(2); },
     angle: function (v) { return v.toFixed(0) + '°'; },
-    feather: function (v) { return v.toFixed(1) + 'px'; }
+    feather: function (v) { return v.toFixed(1) + 'px'; },
+    bgOpacity: percent, fgOpacity: percent,
+    bgScale: percent, fgScale: percent,
+    bgOffsetX: signedPercent, fgOffsetX: signedPercent,
+    bgOffsetY: signedPercent, fgOffsetY: signedPercent
   };
 
   const BUILTIN_PRESETS = {
@@ -52,6 +63,18 @@
 
   function $(id) {
     return document.getElementById(id);
+  }
+
+  function percent(v) {
+    return (v * 100).toFixed(0) + '%';
+  }
+
+  function signedPercent(v) {
+    return (v >= 0 ? '+' : '') + (v * 100).toFixed(0) + '%';
+  }
+
+  function clamp(v, lo, hi) {
+    return v < lo ? lo : (v > hi ? hi : v);
   }
 
   function loadPresets() {
@@ -101,14 +124,91 @@
     return String(n).padStart(width, '0');
   }
 
+  /* Load a File into a slot of IMAGES, then re-render. */
+  function loadImage(slot, file, onDone) {
+    if (!file || !file.type || file.type.indexOf('image/') !== 0) return;
+    const entry = IMAGES[slot];
+    if (entry.url) URL.revokeObjectURL(entry.url);
+    entry.url = URL.createObjectURL(file);
+    entry.name = file.name;
+    const img = new Image();
+    img.onload = function () {
+      entry.image = img;
+      if (onDone) onDone();
+      scheduleRender();
+      setStatus(slot + ': ' + file.name);
+    };
+    img.onerror = function () {
+      setStatus('Could not read ' + file.name);
+    };
+    img.src = entry.url;
+  }
+
+  function clearImage(slot, onDone) {
+    const entry = IMAGES[slot];
+    if (entry.url) URL.revokeObjectURL(entry.url);
+    entry.url = null;
+    entry.image = null;
+    entry.name = '';
+    if (onDone) onDone();
+    scheduleRender();
+  }
+
+  /* Draw one image layer with its fit mode, scale, offset and opacity. */
+  function drawLayer(ctx, layer, w, h) {
+    const img = layer.image;
+    if (!img || !layer.opacity) return;
+    const iw = img.naturalWidth || img.width;
+    const ih = img.naturalHeight || img.height;
+    if (!iw || !ih) return;
+
+    const ox = layer.offsetX * w;
+    const oy = layer.offsetY * h;
+
+    ctx.save();
+    ctx.globalAlpha = clamp(layer.opacity, 0, 1);
+
+    if (layer.fit === 'tile') {
+      const pattern = ctx.createPattern(img, 'repeat');
+      if (pattern) {
+        if (pattern.setTransform && typeof DOMMatrix === 'function') {
+          pattern.setTransform(new DOMMatrix().translate(ox, oy).scale(layer.scale));
+        }
+        ctx.fillStyle = pattern;
+        ctx.fillRect(0, 0, w, h);
+      }
+    } else {
+      let dw = w;
+      let dh = h;
+      if (layer.fit !== 'stretch') {
+        const s = layer.fit === 'contain'
+          ? Math.min(w / iw, h / ih)
+          : Math.max(w / iw, h / ih);
+        dw = iw * s;
+        dh = ih * s;
+      }
+      dw *= layer.scale;
+      dh *= layer.scale;
+      ctx.drawImage(img, (w - dw) / 2 + ox, (h - dh) / 2 + oy, dw, dh);
+    }
+
+    ctx.restore();
+  }
+
   // ------------------------------------------------------------------
   // state
   // ------------------------------------------------------------------
 
   const canvas = $('frame');
   const stage = $('stage');
-  let bgImage = null;
-  let bgUrl = null;
+  const frameCanvas = document.createElement('canvas');
+
+  const IMAGES = {
+    bg: { image: null, url: null, name: '' },
+    fg: { image: null, url: null, name: '' },
+    texture: { image: null, url: null, name: '' }
+  };
+
   let pending = false;
 
   // ------------------------------------------------------------------
@@ -121,6 +221,18 @@
     for (const id in TEXT_FIELDS) o[TEXT_FIELDS[id]] = $(id).value;
     o.holeFill = $('holeFillOn').checked ? $('holeFillColor').value : null;
     return o;
+  }
+
+  function readLayer(prefix) {
+    return {
+      image: IMAGES[prefix].image,
+      fit: $(prefix + 'Fit').value,
+      opacity: parseFloat($(prefix + 'Opacity').value),
+      scale: parseFloat($(prefix + 'Scale').value) || 1,
+      offsetX: parseFloat($(prefix + 'OffsetX').value) || 0,
+      offsetY: parseFloat($(prefix + 'OffsetY').value) || 0,
+      include: $(prefix + 'Export').checked
+    };
   }
 
   function applyOptions(o) {
@@ -140,12 +252,17 @@
   }
 
   function syncUI() {
-    for (const id in NUMBER_FIELDS) {
+    const numeric = Object.keys(NUMBER_FIELDS).slice();
+    ['bg', 'fg'].forEach(function (p) {
+      LAYER_NUMBERS.forEach(function (key) { numeric.push(p + key); });
+    });
+
+    numeric.forEach(function (id) {
       const out = $(id + 'Out');
-      if (!out) continue;
+      if (!out) return;
       const v = parseFloat($(id).value) || 0;
       out.textContent = OUTPUT_FORMAT[id] ? OUTPUT_FORMAT[id](v) : String(v);
-    }
+    });
 
     const style = $('style').value;
     const gradient = $('gradient').value;
@@ -153,8 +270,14 @@
     toggle($('detail').closest('.field'), style === 'torn' || style === 'blob');
     toggle($('waveCount').closest('.field'), style === 'wavy');
     toggle($('cornerRadius').closest('.field'), style !== 'blob');
-    toggle($('color2').closest('.field'), gradient !== 'none');
+    toggle($('color').closest('.field'), gradient !== 'texture');
+    toggle($('color2').closest('.field'), gradient === 'linear' || gradient === 'radial');
     toggle($('angle').closest('.field'), gradient === 'linear');
+    toggle(document.querySelector('[data-for="texture"]'), gradient === 'texture');
+
+    ['bg', 'fg'].forEach(function (p) {
+      $(p + 'Name').textContent = IMAGES[p].name || 'empty';
+    });
   }
 
   // ------------------------------------------------------------------
@@ -166,65 +289,42 @@
     pending = true;
     requestAnimationFrame(function () {
       pending = false;
-      draw();
+      composite(canvas, readOptions(), false);
     });
   }
 
-  function draw() {
-    const opts = readOptions();
-    const asTexture = $('useAsTexture').checked && bgImage;
-    FrameGen.render(canvas, opts, asTexture ? bgImage : null);
+  /* Draw background, frame and foreground into target.
+     forExport honours the per-layer export checkboxes. */
+  function composite(target, opts, forExport) {
+    const w = Math.max(8, opts.width | 0);
+    const h = Math.max(8, opts.height | 0);
+    target.width = w;
+    target.height = h;
 
-    const showBehind = bgUrl && !asTexture;
-    canvas.classList.toggle('has-bg', !!showBehind);
-    canvas.style.backgroundImage = showBehind ? 'url("' + bgUrl + '")' : '';
+    const ctx = target.getContext('2d');
+    ctx.clearRect(0, 0, w, h);
 
-    try {
-      localStorage.setItem(STORE_LAST, JSON.stringify(opts));
-    } catch (err) {
-      /* storage may be blocked; not fatal */
+    const bg = readLayer('bg');
+    const fg = readLayer('fg');
+    const texture = opts.gradient === 'texture' ? IMAGES.texture.image : null;
+
+    if (!forExport || bg.include) drawLayer(ctx, bg, w, h);
+
+    if (!forExport || $('frameExport').checked) {
+      FrameGen.render(frameCanvas, opts, texture);
+      ctx.drawImage(frameCanvas, 0, 0);
     }
-  }
 
-  function renderTo(target, opts) {
-    const asTexture = $('useAsTexture').checked && bgImage;
-    FrameGen.render(target, opts, asTexture ? bgImage : null);
+    if (!forExport || fg.include) drawLayer(ctx, fg, w, h);
 
-    if (!$('bakeBg').checked || !bgImage || asTexture) return target;
-
-    const baked = document.createElement('canvas');
-    baked.width = target.width;
-    baked.height = target.height;
-    const ctx = baked.getContext('2d');
-    FrameGen.drawCover(ctx, bgImage, baked.width, baked.height);
-    ctx.drawImage(target, 0, 0);
-    return baked;
-  }
-
-  // ------------------------------------------------------------------
-  // background image
-  // ------------------------------------------------------------------
-
-  function setBackground(file) {
-    if (!file || !file.type.startsWith('image/')) return;
-    if (bgUrl) URL.revokeObjectURL(bgUrl);
-    bgUrl = URL.createObjectURL(file);
-    const img = new Image();
-    img.onload = function () {
-      bgImage = img;
-      scheduleRender();
-      setStatus('Background: ' + file.name);
-    };
-    img.src = bgUrl;
-  }
-
-  function clearBackground() {
-    if (bgUrl) URL.revokeObjectURL(bgUrl);
-    bgUrl = null;
-    bgImage = null;
-    $('bgFile').value = '';
-    scheduleRender();
-    setStatus('');
+    if (!forExport) {
+      try {
+        localStorage.setItem(STORE_LAST, JSON.stringify(opts));
+      } catch (err) {
+        /* storage may be blocked; not fatal */
+      }
+    }
+    return target;
   }
 
   // ------------------------------------------------------------------
@@ -273,7 +373,7 @@
 
   function downloadPng() {
     const opts = readOptions();
-    const out = renderTo(document.createElement('canvas'), opts);
+    const out = composite(document.createElement('canvas'), opts, true);
     out.toBlob(function (blob) {
       downloadBlob(blob, 'frame-' + opts.style + '-' + opts.seed + '.png');
     }, 'image/png');
@@ -289,10 +389,10 @@
 
     for (let i = 0; i < count; i++) {
       const opts = Object.assign({}, base, { seed: base.seed + i });
-      const out = renderTo(work, opts);
+      composite(work, opts, true);
       files.push({
         name: 'frame_' + base.style + '_' + pad(i + 1, 4) + '.png',
-        data: await canvasToBytes(out)
+        data: await canvasToBytes(work)
       });
       setStatus('Rendering ' + (i + 1) + ' / ' + count);
       await new Promise(function (r) { setTimeout(r, 0); });
@@ -309,13 +409,51 @@
   // ------------------------------------------------------------------
 
   $('panel').addEventListener('input', function (event) {
-    if (event.target.id === 'bgFile' || event.target.id === 'presetSelect') return;
+    if (event.target.type === 'file' || event.target.id === 'presetSelect') return;
     syncUI();
     scheduleRender();
   });
 
   $('panel').addEventListener('change', function (event) {
-    if (event.target.id === 'bgFile') setBackground(event.target.files[0]);
+    const id = event.target.id;
+    if (id === 'bgFile') loadImage('bg', event.target.files[0], syncUI);
+    else if (id === 'fgFile') loadImage('fg', event.target.files[0], syncUI);
+    else if (id === 'textureFile') loadImage('texture', event.target.files[0], syncUI);
+  });
+
+  ['bg', 'fg'].forEach(function (prefix) {
+    const card = $(prefix + 'Card');
+
+    $(prefix + 'Clear').addEventListener('click', function () {
+      $(prefix + 'File').value = '';
+      clearImage(prefix, syncUI);
+      setStatus('');
+    });
+
+    ['dragenter', 'dragover'].forEach(function (type) {
+      card.addEventListener(type, function (event) {
+        event.preventDefault();
+        card.classList.add('dragover');
+      });
+    });
+
+    ['dragleave', 'drop'].forEach(function (type) {
+      card.addEventListener(type, function (event) {
+        event.preventDefault();
+        card.classList.remove('dragover');
+      });
+    });
+
+    card.addEventListener('drop', function (event) {
+      event.stopPropagation();
+      const file = event.dataTransfer && event.dataTransfer.files[0];
+      loadImage(prefix, file, syncUI);
+    });
+  });
+
+  $('textureClear').addEventListener('click', function () {
+    $('textureFile').value = '';
+    clearImage('texture', syncUI);
   });
 
   $('presetSelect').addEventListener('change', function (event) {
@@ -356,7 +494,6 @@
     scheduleRender();
   });
 
-  $('bgClear').addEventListener('click', clearBackground);
   $('downloadBtn').addEventListener('click', downloadPng);
   $('batchBtn').addEventListener('click', exportBatch);
 
@@ -373,6 +510,8 @@
     stage.addEventListener(type, function (event) {
       event.preventDefault();
       stage.classList.add('dragover');
+      const target = document.querySelector('input[name="dropTarget"]:checked');
+      $('dropHint').textContent = 'Drop into ' + (target && target.value === 'fg' ? 'foreground' : 'background');
     });
   });
 
@@ -384,8 +523,9 @@
   });
 
   stage.addEventListener('drop', function (event) {
-    const file = event.dataTransfer.files && event.dataTransfer.files[0];
-    setBackground(file);
+    const target = document.querySelector('input[name="dropTarget"]:checked');
+    const file = event.dataTransfer && event.dataTransfer.files[0];
+    loadImage(target ? target.value : 'bg', file, syncUI);
   });
 
   // ------------------------------------------------------------------
