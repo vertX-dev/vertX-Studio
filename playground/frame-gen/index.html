@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Live editor for generating decorative PNG frames with a transparent cut-out center: torn, clean, wavy and organic edge styles." />
+  <meta name="keywords" content="frame generator, png frame, torn paper frame, overlay, transparent" />
+  <meta name="author" content="vertX" />
+  <meta property="og:title" content="Frame Generator" />
+  <meta property="og:description" content="Generate frame overlays with a transparent cut-out center, live in the browser." />
+  <meta property="og:type" content="website" />
+  <title>Frame Generator</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="app">
+
+    <aside class="panel" id="panel">
+      <header class="panel-head">
+        <h1>Frame Generator</h1>
+        <p class="hint">Every control updates the preview live. The opening is transparent in the exported PNG.</p>
+      </header>
+
+      <section class="group">
+        <h2>Preset</h2>
+        <div class="row">
+          <select id="presetSelect" class="grow">
+            <optgroup label="Built-in" id="presetBuiltin"></optgroup>
+            <optgroup label="Saved" id="presetUser"></optgroup>
+          </select>
+        </div>
+        <div class="row">
+          <button type="button" id="presetSave">Save as…</button>
+          <button type="button" id="presetDelete" class="ghost">Delete</button>
+          <button type="button" id="resetBtn" class="ghost">Reset</button>
+        </div>
+      </section>
+
+      <section class="group">
+        <h2>Canvas</h2>
+        <div class="row">
+          <label class="field">
+            <span>Width</span>
+            <input type="number" id="width" min="16" max="8192" step="1" value="1024" />
+          </label>
+          <label class="field">
+            <span>Height</span>
+            <input type="number" id="height" min="16" max="8192" step="1" value="1024" />
+          </label>
+        </div>
+        <div class="row">
+          <button type="button" class="ghost" data-size="1024x1024">1:1</button>
+          <button type="button" class="ghost" data-size="1920x1080">16:9</button>
+          <button type="button" class="ghost" data-size="1080x1350">4:5</button>
+          <button type="button" class="ghost" data-size="2048x2048">2048</button>
+        </div>
+      </section>
+
+      <section class="group">
+        <h2>Shape</h2>
+        <label class="field">
+          <span>Style</span>
+          <select id="style">
+            <option value="torn">Torn</option>
+            <option value="clean">Clean</option>
+            <option value="wavy">Wavy</option>
+            <option value="blob">Blob</option>
+          </select>
+        </label>
+
+        <label class="field slider">
+          <span>Margin <output id="marginOut"></output></span>
+          <input type="range" id="margin" min="0.01" max="0.45" step="0.005" value="0.13" />
+        </label>
+
+        <label class="field slider" data-for="jitter">
+          <span>Margin jitter <output id="marginJitterOut"></output></span>
+          <input type="range" id="marginJitter" min="0" max="1" step="0.01" value="0" />
+        </label>
+
+        <label class="field slider" data-for="roughness">
+          <span>Roughness <output id="roughnessOut"></output></span>
+          <input type="range" id="roughness" min="0" max="1.5" step="0.01" value="0.45" />
+        </label>
+
+        <label class="field slider" data-for="detail">
+          <span>Detail <output id="detailOut"></output></span>
+          <input type="range" id="detail" min="1" max="8" step="1" value="5" />
+        </label>
+
+        <label class="field slider" data-for="waves">
+          <span>Wave count <output id="waveCountOut"></output></span>
+          <input type="range" id="waveCount" min="3" max="40" step="1" value="10" />
+        </label>
+
+        <label class="field slider" data-for="corner">
+          <span>Corner radius <output id="cornerRadiusOut"></output></span>
+          <input type="range" id="cornerRadius" min="0" max="0.5" step="0.005" value="0" />
+        </label>
+
+        <label class="field slider">
+          <span>Feather <output id="featherOut"></output></span>
+          <input type="range" id="feather" min="0" max="30" step="0.5" value="0" />
+        </label>
+
+        <div class="row">
+          <label class="field grow">
+            <span>Seed</span>
+            <input type="number" id="seed" min="0" step="1" value="1" />
+          </label>
+          <button type="button" id="randomSeed">Randomize</button>
+        </div>
+      </section>
+
+      <section class="group">
+        <h2>Fill</h2>
+        <label class="field">
+          <span>Mode</span>
+          <select id="gradient">
+            <option value="none">Solid</option>
+            <option value="linear">Linear gradient</option>
+            <option value="radial">Radial gradient</option>
+          </select>
+        </label>
+        <div class="row">
+          <label class="field">
+            <span>Color</span>
+            <input type="color" id="color" value="#5b14f5" />
+          </label>
+          <label class="field" data-for="color2">
+            <span>Color 2</span>
+            <input type="color" id="color2" value="#2a00a8" />
+          </label>
+        </div>
+        <label class="field slider" data-for="angle">
+          <span>Angle <output id="angleOut"></output></span>
+          <input type="range" id="angle" min="0" max="360" step="1" value="90" />
+        </label>
+        <div class="row">
+          <label class="check">
+            <input type="checkbox" id="holeFillOn" />
+            <span>Fill the opening</span>
+          </label>
+          <input type="color" id="holeFillColor" value="#ffffff" />
+        </div>
+      </section>
+
+      <section class="group">
+        <h2>Background image</h2>
+        <p class="hint">Drop an image on the preview, or pick one. Preview only, unless you bake it in.</p>
+        <div class="row">
+          <input type="file" id="bgFile" accept="image/*" class="grow" />
+          <button type="button" id="bgClear" class="ghost">Clear</button>
+        </div>
+        <label class="check">
+          <input type="checkbox" id="bakeBg" />
+          <span>Bake background into exports</span>
+        </label>
+        <label class="check">
+          <input type="checkbox" id="useAsTexture" />
+          <span>Use image as the frame texture instead</span>
+        </label>
+      </section>
+
+      <section class="group">
+        <h2>Advanced</h2>
+        <label class="field slider">
+          <span>Outline points <output id="pointsOut"></output></span>
+          <input type="range" id="points" min="200" max="4000" step="50" value="1600" />
+        </label>
+      </section>
+    </aside>
+
+    <main class="stage-wrap">
+      <div class="stage" id="stage">
+        <canvas id="frame"></canvas>
+        <div class="drop-hint" id="dropHint">Drop an image here</div>
+      </div>
+
+      <div class="toolbar">
+        <button type="button" id="downloadBtn" class="primary">Download PNG</button>
+        <label class="field inline">
+          <span>Batch</span>
+          <input type="number" id="batchCount" min="2" max="200" step="1" value="10" />
+        </label>
+        <button type="button" id="batchBtn">Export ZIP</button>
+        <span class="status" id="status"></span>
+      </div>
+    </main>
+
+  </div>
+
+  <script src="frame.js"></script>
+  <script src="zip.js"></script>
+  <script src="app.js" defer></script>
+</body>
+</html>

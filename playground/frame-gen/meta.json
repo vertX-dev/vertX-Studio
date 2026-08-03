@@ -1,0 +1,6 @@
+{
+  "title": "Frame Generator",
+  "description": "Live editor for frame overlays with a transparent cut-out center: torn, clean, wavy and blob edges, gradients, presets and batch PNG export.",
+  "tags": ["graphics", "tool"],
+  "order": 20
+}
