@@ -1,0 +1,6 @@
+{
+  "title": "Blockbench Model Merger",
+  "description": "Combine several .bbmodel files into one: texture indices rebased, UUIDs rewritten, per-file offsets and a live wireframe preview.",
+  "tags": ["minecraft", "tool"],
+  "order": 15
+}

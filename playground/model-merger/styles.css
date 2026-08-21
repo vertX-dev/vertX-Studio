@@ -1,0 +1,466 @@
+/* ============================================================
+   Variables
+============================================================ */
+:root {
+  --primary-color: #5b14f5;
+  --primary-dark: #4409c4;
+  --text-color: #333;
+  --muted-color: #777;
+  --bg-color: #f5f5f5;
+  --panel-bg: #ffffff;
+  --header-color: #2c3e50;
+  --border-color: #ddd;
+  --shadow-color: rgba(0, 0, 0, 0.1);
+  --light-bg: #f9f9f9;
+  --stage-bg: #2b2b30;
+  --warn-color: #b3651b;
+  --warn-bg: #fdf3e7;
+  --info-color: #3c6ea5;
+  --info-bg: #eef4fa;
+  --font-stack: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+  --mono-stack: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+/* ============================================================
+   Global
+============================================================ */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: var(--font-stack);
+  line-height: 1.5;
+  color: var(--text-color);
+  background-color: var(--bg-color);
+}
+
+code {
+  font-family: var(--mono-stack);
+  font-size: 0.9em;
+}
+
+.app {
+  display: grid;
+  grid-template-columns: 340px 1fr;
+  gap: 1rem;
+  padding: 1rem;
+  min-height: 100vh;
+  align-items: start;
+}
+
+@media (max-width: 900px) {
+  .app {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ============================================================
+   Panel
+============================================================ */
+.panel {
+  background: var(--panel-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  box-shadow: 0 1px 3px var(--shadow-color);
+  padding: 1rem;
+  max-height: calc(100vh - 2rem);
+  overflow-y: auto;
+  position: sticky;
+  top: 1rem;
+}
+
+@media (max-width: 900px) {
+  .panel {
+    position: static;
+    max-height: none;
+  }
+}
+
+.panel-head h1 {
+  font-size: 1.3rem;
+  color: var(--header-color);
+}
+
+.hint {
+  font-size: 0.8rem;
+  color: var(--muted-color);
+  margin: 0.25rem 0 0;
+}
+
+.group {
+  border-top: 1px solid var(--border-color);
+  margin-top: 1rem;
+  padding-top: 0.85rem;
+}
+
+.group h2 {
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted-color);
+  margin-bottom: 0.6rem;
+}
+
+.row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: flex-end;
+  margin-top: 0.5rem;
+}
+
+/* ============================================================
+   Fields
+============================================================ */
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  flex: 1;
+  min-width: 0;
+}
+
+.field > span {
+  font-size: 0.75rem;
+  color: var(--muted-color);
+}
+
+.field.narrow {
+  flex: 0 0 4.5rem;
+}
+
+input[type='text'],
+input[type='number'],
+select {
+  font: inherit;
+  font-size: 0.85rem;
+  padding: 0.35rem 0.45rem;
+  border: 1px solid var(--border-color);
+  border-radius: 5px;
+  background: #fff;
+  color: inherit;
+  width: 100%;
+  min-width: 0;
+}
+
+input[type='text']:focus,
+input[type='number']:focus,
+select:focus {
+  outline: 2px solid var(--primary-color);
+  outline-offset: -1px;
+  border-color: var(--primary-color);
+}
+
+.check {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+  padding: 0.15rem 0;
+  cursor: pointer;
+}
+
+.check input {
+  accent-color: var(--primary-color);
+  flex: none;
+}
+
+.check.tight {
+  gap: 0.35rem;
+}
+
+/* ============================================================
+   Buttons
+============================================================ */
+button {
+  font: inherit;
+  font-size: 0.85rem;
+  padding: 0.4rem 0.75rem;
+  border: 1px solid var(--border-color);
+  border-radius: 5px;
+  background: var(--light-bg);
+  color: inherit;
+  cursor: pointer;
+}
+
+button:hover:not(:disabled) {
+  border-color: var(--primary-color);
+  color: var(--primary-color);
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+button.primary {
+  background: var(--primary-color);
+  border-color: var(--primary-color);
+  color: #fff;
+  font-weight: 600;
+}
+
+button.primary:hover:not(:disabled) {
+  background: var(--primary-dark);
+  border-color: var(--primary-dark);
+  color: #fff;
+}
+
+button.ghost {
+  background: transparent;
+}
+
+button.link {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--primary-color);
+  text-decoration: underline;
+  font-size: inherit;
+}
+
+button.icon {
+  padding: 0.15rem 0.4rem;
+  line-height: 1.2;
+  background: transparent;
+}
+
+/* ============================================================
+   Stats and warnings
+============================================================ */
+.stats {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.15rem 0.5rem;
+  font-size: 0.82rem;
+}
+
+.stats > div {
+  display: contents;
+}
+
+.stats dt {
+  color: var(--muted-color);
+}
+
+.stats dd {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.warnings {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  font-size: 0.8rem;
+}
+
+.warnings li {
+  padding: 0.4rem 0.5rem;
+  border-radius: 5px;
+  border-left: 3px solid var(--border-color);
+  background: var(--light-bg);
+}
+
+.warnings li.warn {
+  border-left-color: var(--warn-color);
+  background: var(--warn-bg);
+  color: var(--warn-color);
+}
+
+.warnings li.info {
+  border-left-color: var(--info-color);
+  background: var(--info-bg);
+  color: var(--info-color);
+}
+
+.warnings li.empty {
+  color: var(--muted-color);
+  background: none;
+  border-left-color: transparent;
+  padding-left: 0;
+}
+
+/* ============================================================
+   Stage
+============================================================ */
+.stage-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  min-width: 0;
+}
+
+.dropzone {
+  border: 2px dashed var(--border-color);
+  border-radius: 8px;
+  background: var(--panel-bg);
+  padding: 1.25rem;
+  text-align: center;
+}
+
+.dropzone.over {
+  border-color: var(--primary-color);
+  background: #f6f1ff;
+}
+
+.dropzone .hint {
+  margin-top: 0.2rem;
+}
+
+.stage {
+  position: relative;
+  background: var(--stage-bg);
+  border-radius: 8px;
+  overflow: hidden;
+  min-height: 320px;
+  box-shadow: 0 1px 3px var(--shadow-color);
+}
+
+.stage canvas {
+  display: block;
+  width: 100%;
+  height: 420px;
+  touch-action: none;
+  cursor: grab;
+}
+
+.stage canvas:active {
+  cursor: grabbing;
+}
+
+.stage-hint {
+  position: absolute;
+  right: 0.6rem;
+  bottom: 0.5rem;
+  font-size: 0.72rem;
+  color: rgba(255, 255, 255, 0.4);
+  pointer-events: none;
+}
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  background: var(--panel-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 0.6rem 0.75rem;
+}
+
+.status {
+  font-size: 0.8rem;
+  color: var(--muted-color);
+}
+
+.status.error {
+  color: #c0392b;
+}
+
+/* ============================================================
+   File list
+============================================================ */
+.files {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.files:empty {
+  display: none;
+}
+
+.file {
+  background: var(--panel-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 0.6rem 0.75rem;
+  box-shadow: 0 1px 3px var(--shadow-color);
+}
+
+.file.disabled {
+  opacity: 0.55;
+}
+
+.file-main {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.swatch {
+  width: 0.85rem;
+  height: 0.85rem;
+  border-radius: 3px;
+  background: var(--muted-color);
+  display: inline-block;
+  flex: none;
+}
+
+.file-id {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+}
+
+.file-id input {
+  max-width: 14rem;
+  font-weight: 600;
+}
+
+.file-name {
+  font-size: 0.75rem;
+  color: var(--muted-color);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.file-actions {
+  display: flex;
+  gap: 0.15rem;
+  flex: none;
+}
+
+.file-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  margin-top: 0.5rem;
+}
+
+.tag {
+  font-size: 0.7rem;
+  padding: 0.1rem 0.4rem;
+  border-radius: 999px;
+  background: var(--light-bg);
+  border: 1px solid var(--border-color);
+  color: var(--muted-color);
+}
+
+.tag.alert {
+  background: var(--warn-bg);
+  border-color: var(--warn-color);
+  color: var(--warn-color);
+}
+
+.file-transform {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.file-transform .field {
+  flex: 1;
+}
+
+.file-transform .field > span {
+  font-size: 0.7rem;
+}
